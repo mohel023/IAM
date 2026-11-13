@@ -57,7 +57,7 @@ if(-not (@($ctx.Scopes) -contains 'User.Read.All' -or @($ctx.Scopes) -contains '
  throw 'Missing delegated User.Read.All or Directory.Read.All. Reconnect with approved read-only scopes.'
 }
 Write-Host 'Collecting AD users (read-only)...'
-$adArgs=@{SearchBase=$SearchBase;LDAPFilter='(&(objectCategory=person)(objectClass=user))';Properties=@('msDS-ConsistencyGuid','mail','proxyAddresses','userPrincipalName','enabled');ResultSetSize=$null}
+$adArgs=@{SearchBase=$SearchBase;LDAPFilter='(&(objectCategory=person)(objectClass=user))';Properties='*';ResultSetSize=$null}
 if($AdServer){$adArgs.Server=$AdServer}
 $adUsers=@(Get-ADUser @adArgs | Where-Object {$IncludeDisabledADUsers -or $_.Enabled})
 Write-Host 'Collecting cloud users (read-only)...'
