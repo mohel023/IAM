@@ -14,7 +14,7 @@ param(
 )
 $ErrorActionPreference='Stop'
 Import-Module ActiveDirectory
-$params=@{SearchBase=$SearchBase;LDAPFilter='(&(objectCategory=person)(objectClass=user))';Properties=@('msDS-ConsistencyGuid','userPrincipalName','mail','proxyAddresses');ResultSetSize=$null}
+$params=@{SearchBase=$SearchBase;LDAPFilter='(&(objectCategory=person)(objectClass=user))';Properties='*';ResultSetSize=$null}
 if($Server){$params.Server=$Server}
 $users=@(Get-ADUser @params)
 $populated=@($users | Where-Object {$null -ne $_.'msDS-ConsistencyGuid' -and @($_.'msDS-ConsistencyGuid').Count -gt 0})
