@@ -30,31 +30,69 @@ Request mailbox list, primary SMTP/UPN, mailbox type, size, archive presence, an
 
 ## Email draft to source team (EWS/OAuth path only)
 
-**Subject:** BitTitan MigrationWiz — Source Tenant Application Setup
+**Subject:** BitTitan MigrationWiz – Source Tenant Prerequisites and Configuration
 
 Hi Team,
 
-For our Exchange Online mailbox migration with BitTitan MigrationWiz, we are planning to use the EWS/OAuth application-permissions method, subject to final confirmation of the authentication approach.
+Following our discussions, we are preparing the Exchange Online mailbox migration using BitTitan MigrationWiz and would like to confirm the prerequisites and configuration required on the source tenant.
 
-For this method, a dedicated Entra ID application registration and the relevant Exchange Online API permissions are needed in **both the source and target tenants**. We will handle the target-side configuration.
+Based on the BitTitan documentation, when using the EWS/OAuth application-permissions method, a dedicated Entra ID application needs to be registered and configured on both the source and target tenants.
 
-Could you please arrange the following on the source tenant:
-- Register a dedicated Entra ID application and share its Tenant ID and Application (Client) ID.
-- Configure the Exchange Online application permission `full_access_as_app` and review the BitTitan EWS procedure for any additional permission requirements, including `EWS.AccessAsUser.All` where applicable.
-- Have an authorized administrator grant consent.
-- Check the EWS access settings and any application access restrictions for the pilot mailboxes.
-- Confirm who can coordinate the initial endpoint connectivity test.
+We will handle the target tenant configuration, but we will need your support with the following items on the source side.
 
-If the selected workflow requires a client secret, please use an approved secure channel rather than email.
+**1. Application registration and permissions**
 
-BitTitan documentation:
-- https://help.bittitan.com/hc/en-us/articles/27481872521115-M365-Mailbox-and-Archive-Migrations-Performing-Migration-using-only-API-permissions
-- https://help.bittitan.com/hc/en-us/articles/360034124813-Authentication-Methods-for-Microsoft-365-All-Products-Migrations
-- https://help.bittitan.com/hc/en-us/articles/6488570876955-Exchange-Online-Microsoft-365-to-Exchange-Online-Microsoft-365-Mailbox-Migration-Guide
+- Register a dedicated application in Microsoft Entra ID.
+- Configure the required Exchange Online API permissions:
+  - Application permission: `full_access_as_app`
+  - Delegated permission: `EWS.AccessAsUser.All`, where required by the selected BitTitan configuration.
+- Grant administrator consent for the required permissions.
+- Provide the Tenant ID and Application (Client) ID.
+- Prepare a client secret if required. We can agree on a secure way to share it.
 
-Please let us know once these items are ready, or if you have any questions.
+**2. Application access scoping**
+
+For security reasons, we would like to restrict the application's access to the mailboxes included in the migration scope, rather than allowing unrestricted access to the entire Exchange Online environment.
+
+Could you please review the available options for scoping the application permissions on the source tenant? We can validate the appropriate approach together during the configuration session, including testing access to both authorized and unauthorized mailboxes.
+
+**3. Administrator account**
+
+Could you also prepare a dedicated admin account with the necessary privileges to perform the application registration, grant admin consent and configure the required Exchange Online settings?
+
+The account can remain under your team's control and be used during our working session.
+
+**4. Exchange Online prerequisites**
+
+We will also need to:
+
+- Confirm that EWS access is available for the migration.
+- Review any EWS application access restrictions or allow-list requirements.
+- Check whether any existing security policies could prevent MigrationWiz from accessing the source mailboxes.
+- Validate connectivity to the source Exchange Online environment.
+
+**5. Working session**
+
+To complete these activities, could you please let us know when you would be available for a **half-day working session**?
+
+The idea would be to configure the application together, review and validate the permissions and access restrictions, and perform an initial MigrationWiz connectivity test.
+
+**Official BitTitan documentation**
+
+- Exchange Online to Exchange Online Migration Guide:
+  https://help.bittitan.com/hc/en-us/articles/6488570876955-Exchange-Online-Microsoft-365-to-Exchange-Online-Microsoft-365-Mailbox-Migration-Guide
+- Mailbox and Archive Migration using API Permissions:
+  https://help.bittitan.com/hc/en-us/articles/27481872521115-M365-Mailbox-and-Archive-Migrations-Performing-Migration-using-only-API-permissions
+- Microsoft 365 Authentication Methods:
+  https://help.bittitan.com/hc/en-us/articles/360034124813-Authentication-Methods-for-Microsoft-365-All-Products-Migrations
+
+Please let us know if you have any questions or concerns regarding the proposed configuration.
+
+Thanks in advance for your support.
 
 Best regards
 
 ---
-**Security:** No internal tenant IDs, production domain names, secrets, usernames or customer identifiers belong in this public repository.
+**Implementation note:** This draft assumes the EWS/OAuth method. Confirm the selected BitTitan workflow and whether its permission model supports mailbox-level scoping before committing to a restriction mechanism. An EWS allow-list does not by itself restrict which mailboxes an authorized app can access.
+
+**Security:** Do not commit internal tenant IDs, production domain names, secrets, usernames or customer identifiers to this public repository.
