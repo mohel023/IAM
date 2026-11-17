@@ -13,7 +13,7 @@
 - Des journaux de diagnostics de provisioning existent ; les traces d'initialisation Event Viewer échouent également.
 
 ## Hypothèses à départager (non confirmées)
-1. DLL native manquante ou dépendance native absente / chemin de chargement.
+1. **Priorité :** DLL native `pap_connector_lib.dll` absente du package installé, ou dépendance native absente / chemin de chargement. La recherche précédente n'a retourné aucun fichier visible.
 2. Droits ou disponibilité du gMSA pour le service.
 3. Installation incomplète ou composants incompatibles.
 4. Problème de connectivité Application Proxy dans le contexte de l'agent, malgré TCP 443 OK.
@@ -46,7 +46,7 @@ Get-ChildItem -LiteralPath $root -Recurse -File -ErrorAction SilentlyContinue |
     Where-Object Name -eq 'pap_connector_lib.dll' |
     Select-Object FullName,Length,LastWriteTime
 ```
-Si le fichier existe, `0x8007007E` peut signaler **une dépendance** manquante : ne pas conclure que la DLL principale est absente. Ne jamais télécharger une DLL isolée depuis une source non officielle.
+Si le fichier est absent dans le répertoire d'installation, vérifier la version et l'intégrité du package officiel Microsoft, puis planifier une réparation/réinstallation contrôlée si nécessaire. Si le fichier existe, `0x8007007E` peut signaler **une dépendance** manquante. La recherche antérieure sur les volumes ne retournait aucun résultat visible, mais utilisait `-ErrorAction SilentlyContinue`. Ne jamais télécharger une DLL isolée depuis une source non officielle.
 
 ### 4. Examiner les événements de service
 ```powershell
