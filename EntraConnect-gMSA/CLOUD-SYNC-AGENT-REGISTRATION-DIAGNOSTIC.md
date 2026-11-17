@@ -199,3 +199,35 @@ Get-Service *Provisioning* -ErrorAction SilentlyContinue |
 ~~~
 
 **Question de qualification :** « idem » signifie-t-il une erreur dans `Invoke-WebRequest`, ou uniquement le message `Connector registration failed` dans l'assistant ? Relever le message complet et l'horodatage. Expurger les chemins utilisateurs, identifiants et journaux avant partage ou commit dans ce dépôt public.
+
+## Suivi — journaux Cloud Sync localisés
+
+La dernière capture confirme la présence de journaux récents sous :
+
+C:\ProgramData\Microsoft\Azure AD Connect Provisioning Agent\Trace
+
+Fichiers observés : AzureADConnectProvisioningAgent_*.log, trace-wizard-*.log et trace-wizard-*.txt. La cause racine reste inconnue.
+
+### Recherche ciblée (lecture seule)
+
+~~~powershell
+$LogPath = 'C:\ProgramData\Microsoft\Azure AD Connect Provisioning Agent\Trace'
+
+Get-ChildItem $LogPath -File |
+  Where-Object { $_.Extension -in '.log','.txt' } |
+  Select-String -Pattern 'error|exception|failed|proxy|403|407|timeout|certificate|servicebus' |
+  Select-Object -Last 40 Path,LineNumber,Line | Format-List
+
+$WizardLog = Get-ChildItem $LogPath -File |
+  Where-Object { $_.Name -like 'trace-wizard*' } |
+  Sort-Object LastWriteTime -Descending |
+  Select-Object -First 1
+
+if ($WizardLog) {
+  Write-Host "Journal sélectionné : $($WizardLog.Name)"
+  Select-String -Path $WizardLog.FullName -Pattern 'error|exception|failed|registration|proxy' -Context 3,5 |
+    Select-Object -Last 15 | Format-List
+}
+~~~
+
+Ne pas committer les journaux bruts dans ce dépôt public. Expurger les identifiants, noms internes, secrets et jetons avant partage. Lire l'exception interne et le FQDN exact avant toute modification réseau. Conserver ADSync en Staging Mode.
