@@ -66,3 +66,34 @@ Get-WinEvent -FilterHashtable @{LogName='System';ProviderName='Service Control M
 - État du service après l'installation.
 - Résultat de la recherche exacte de la DLL.
 - Extrait **expurgé** du premier échec dans les logs de l'installateur et de registration.
+
+## Mise à jour — contrôle du processus d'installation silencieuse
+
+Capture suivante : le processus d'installation (PID observé) a `HasExited=True`, mais la colonne `ExitCode` est vide. **Cela ne prouve ni succès ni échec**. Les événements SCM 7036 (changement d'état) et 7045 (installation de service) ne valident pas le fonctionnement de l'agent.
+
+Contrôles complémentaires **en lecture seule** :
+
+```powershell
+# Même session uniquement, si l'objet existe encore :
+if (Get-Variable installerProcess -ErrorAction SilentlyContinue) {
+    try {
+        $installerProcess.Refresh()
+        [pscustomobject]@{
+            HasExited = $installerProcess.HasExited
+            ExitCode = if ($installerProcess.HasExited) { $installerProcess.ExitCode } else { $null }
+        }
+    } catch {
+        Write-Warning "Code de sortie non disponible : $($_.Exception.Message)"
+    }
+}
+
+Get-WinEvent -FilterHashtable @{
+    LogName='Application'
+    StartTime=(Get-Date).AddDays(-1)
+} -ErrorAction SilentlyContinue |
+    Where-Object { $_.ProviderName -eq 'MsiInstaller' -and $_.Message -match 'Provisioning|Connect' } |
+    Select-Object -First 15 TimeCreated,Id,Message |
+    Format-List
+```
+
+Ne pas relancer l'installation pour obtenir uniquement un code de retour. Examiner d'abord les logs existants. Avant partage ou commit, expurger identifiants, noms internes et chemins de profils.
