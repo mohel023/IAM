@@ -255,3 +255,39 @@ Vérifier ensuite les endpoints exacts Application Proxy / Service Bus dans les 
 Question ouverte : le serveur utilise-t-il une sortie Internet directe, Zscaler, un proxy d'entreprise ou un pare-feu filtrant les URL ?
 
 Conserver Entra Connect Sync en Staging Mode ; ne pas réinstaller ni modifier TLS ou le pare-feu sans diagnostic ciblé. Ne pas publier de journaux bruts, noms internes, jetons ou secrets dans ce dépôt public.
+
+
+## Nouveau constat — chargement DLL et journalisation native (17 novembre 2026)
+
+Les deux journaux \`AzureADConnectProvisioningAgent_*.log\` affichés dans la capture contiennent, à la ligne 1 :
+
+\`\`\`text
+RustEventLogger.Initialize: Event Viewer initialization failed 3 consecutive time(s).
+Unable to load DLL 'pap_connector_lib.dll': The specified module could not be found.
+HRESULT: 0x8007007E
+\`\`\`
+
+**Interprétation prudente :** \`0x8007007E\` indique qu'une DLL ou une dépendance native ne peut pas être chargée. Le message porte sur l'initialisation du composant de journalisation ; son lien causal avec l'échec antérieur \`RegisterConnector\` n'est **pas démontré**. Ne pas conclure à un problème réseau ni à une installation corrompue sur cette seule base.
+
+### Contrôles locaux non destructifs
+
+Exécuter dans Windows PowerShell en administrateur, sans publier les chemins contenant des identifiants privés :
+
+\`\`\`powershell
+# 1. Localiser la DLL (et relever taille/date)
+Get-ChildItem 'C:\Program Files\Microsoft' -Filter 'pap_connector_lib.dll' -Recurse -File -ErrorAction SilentlyContinue |
+    Select-Object FullName,Length,LastWriteTime
+
+# 2. Relever les services Provisioning et leurs exécutables
+Get-CimInstance Win32_Service |
+    Where-Object { $_.Name -match 'Provisioning|AADConnect' -or $_.DisplayName -match 'Provisioning|Cloud Sync' } |
+    Select-Object Name,State,StartMode,PathName | Format-List
+
+# 3. Inventaire des composants installés (lecture seule)
+Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+                 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue |
+    Where-Object { $_.DisplayName -match 'Provisioning|Visual C\+\+' } |
+    Select-Object DisplayName,DisplayVersion,Publisher
+\`\`\`
+
+**Décision après résultats :** si DLL absente, vérifier la version et l'intégrité du package Microsoft ; si DLL présente, investiguer ses dépendances et l'environnement de chargement. Ne jamais télécharger/coller une DLL isolée depuis une source non officielle. Ne pas modifier le service Entra Connect Sync ni désactiver son Staging Mode. Aucune configuration Cloud Sync ne doit être activée avant validation des correspondances avec les utilisateurs cloud existants.
