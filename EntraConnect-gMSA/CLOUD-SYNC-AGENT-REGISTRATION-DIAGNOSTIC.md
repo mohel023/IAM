@@ -231,3 +231,27 @@ if ($WizardLog) {
 ~~~
 
 Ne pas committer les journaux bruts dans ce dépôt public. Expurger les identifiants, noms internes, secrets et jetons avant partage. Lire l'exception interne et le FQDN exact avant toute modification réseau. Conserver ADSync en Staging Mode.
+
+## Suivi du diagnostic — erreur de confirmation RegisterConnector
+
+Nouvelle capture du journal trace-wizard : ligne 531, confirmation step ended with an error, System.InvalidOperationException: Connector registration failed. Les messages GC_WITHOUT_DISPOSE voisins ne suffisent pas à expliquer cet échec. Aucune cause racine démontrée à ce stade.
+
+### Priorité : examiner les logs du service plutôt que répéter le wizard
+
+~~~powershell
+$Path = 'C:\ProgramData\Microsoft\Azure AD Connect Provisioning Agent\Trace'
+Get-ChildItem $Path -Filter 'AzureADConnectProvisioningAgent_*.log' -File |
+  Sort-Object LastWriteTime -Descending |
+  Select-Object Name,Length,LastWriteTime
+
+Get-ChildItem $Path -Filter 'AzureADConnectProvisioningAgent_*.log' -File |
+  Select-String -Pattern 'error|exception|failed|connection|registration' |
+  Select-Object -Last 20 Path,LineNumber,Line |
+  Format-List
+~~~
+
+Vérifier ensuite les endpoints exacts Application Proxy / Service Bus dans les erreurs détaillées, les restrictions du pare-feu ou d'un éventuel proxy d'entreprise, sans supposer qu'un test TCP 443 vers login.microsoftonline.com, enterpriseregistration.windows.net et graph.microsoft.com suffit.
+
+Question ouverte : le serveur utilise-t-il une sortie Internet directe, Zscaler, un proxy d'entreprise ou un pare-feu filtrant les URL ?
+
+Conserver Entra Connect Sync en Staging Mode ; ne pas réinstaller ni modifier TLS ou le pare-feu sans diagnostic ciblé. Ne pas publier de journaux bruts, noms internes, jetons ou secrets dans ce dépôt public.
