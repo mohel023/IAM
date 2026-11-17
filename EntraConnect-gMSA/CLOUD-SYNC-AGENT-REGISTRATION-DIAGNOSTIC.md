@@ -327,3 +327,42 @@ Get-WinEvent -FilterHashtable @{
 ~~~
 
 **Interprétation attendue :** service arrêté + DLL introuvable au mauvais emplacement ne suffisent pas à conclure à un package corrompu. Si DLL absente du répertoire réel, envisager réparation officielle après validation ; si présente, rechercher ses dépendances natives. Ne pas télécharger de DLL isolée, désactiver la sécurité, ni sortir Entra Connect Sync de son Staging Mode. Les sorties de commandes doivent être expurgées des informations internes avant partage sur le dépôt public.
+
+
+## Nouveaux constats — inventaire DLL et démarrage fugitif du service (17 novembre 2026)
+
+Les captures suivantes montrent un inventaire de nombreuses DLL .NET/Application Proxy sous le répertoire de l'agent, **sans preuve concluante** de présence ou d'absence de \`pap_connector_lib.dll\` (liste tronquée). Les événements \`Service Control Manager\` **7036** indiquent :
+- 08:32:47 : service Microsoft Azure AD Connect Provisioning Agent en état \`running\` ;
+- 08:32:49 : service en état \`stopped\` ;
+- un événement 7045 est visible, mais son message n'est pas affiché.
+
+Le service peut donc démarrer puis s'arrêter rapidement. Il faut examiner les erreurs corrélées dans le journal Application et les éventuels événements système 7000/7023/7031/7034 avant de conclure à une DLL manquante ou à un problème réseau.
+
+### Collecte ciblée, en lecture seule
+
+~~~powershell
+$AgentPath = 'C:\Program Files\Microsoft Azure AD Connect Provisioning Agent'
+Get-ChildItem $AgentPath -Recurse -File -Filter 'pap_connector_lib.dll' -ErrorAction SilentlyContinue |
+  Select-Object FullName,Length
+
+Get-WinEvent -FilterHashtable @{
+  LogName='Application'
+  StartTime=(Get-Date).AddDays(-2)
+  Level=1,2,3
+} -ErrorAction SilentlyContinue |
+  Where-Object {
+    $_.ProviderName -match 'Application Error|\.NET Runtime|Provisioning' -or
+    $_.Message -match 'AADConnectProvisioningAgent|pap_connector_lib'
+  } |
+  Select-Object -First 20 TimeCreated,Id,ProviderName,Message | Format-List
+
+Get-WinEvent -FilterHashtable @{
+  LogName='System'
+  StartTime=(Get-Date).AddDays(-2)
+  Id=7000,7009,7011,7023,7024,7031,7034
+} -ErrorAction SilentlyContinue |
+  Where-Object { $_.Message -match 'Provisioning' } |
+  Format-List TimeCreated,Id,Message
+~~~
+
+**Garde-fous :** ne pas démarrer de synchronisation active, désactiver le Staging Mode d'Entra Connect Sync, modifier les comptes, copier une DLL non officielle, ou lancer une réinstallation avant validation du diagnostic. Ne publier aucune sortie brute contenant des identifiants ou informations internes dans ce dépôt public.
