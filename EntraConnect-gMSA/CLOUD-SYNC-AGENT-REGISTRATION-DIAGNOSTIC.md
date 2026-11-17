@@ -178,3 +178,24 @@ La capture PowerShell confirme les trois tests `Test-NetConnection -Port 443` :
 **Toujours en attente :** sortie des tests `Invoke-WebRequest`, paramètres proxy du profil utilisateur et résultats de la recherche de journaux de l'agent. Ne pas considérer l'absence de sortie visible sur la capture comme une réussite.
 
 **Action suivante :** exécuter les tests HTTPS et relever l'exception interne via « Check the logs » de l'assistant d'enregistrement, en expurgeant tout identifiant privé avant partage. Conserver Entra Connect Sync en Staging Mode.
+
+## Suivi — incident toujours présent (retour « idem »)
+
+L'opérateur signale que le problème persiste, sans nouvelle sortie de diagnostic permettant d'établir si l'échec concerne HTTPS ou l'enregistrement de l'agent. **Ne pas conclure que les tests HTTPS ont échoué.**
+
+### Collecte complémentaire en lecture seule
+
+~~~powershell
+Get-ChildItem 'C:\ProgramData\Microsoft' -Recurse -File -ErrorAction SilentlyContinue |
+  Where-Object { $_.Name -match 'Provisioning|Proxy|Trace' -and $_.Extension -match '\.log|\.txt' } |
+  Select-Object -First 30 FullName,LastWriteTime
+
+Get-WinEvent -ListLog * -ErrorAction SilentlyContinue |
+  Where-Object { $_.LogName -match 'Provisioning|ApplicationProxy|AAD' } |
+  Select-Object LogName,RecordCount
+
+Get-Service *Provisioning* -ErrorAction SilentlyContinue |
+  Select-Object Name,Status,StartType
+~~~
+
+**Question de qualification :** « idem » signifie-t-il une erreur dans `Invoke-WebRequest`, ou uniquement le message `Connector registration failed` dans l'assistant ? Relever le message complet et l'horodatage. Expurger les chemins utilisateurs, identifiants et journaux avant partage ou commit dans ce dépôt public.
