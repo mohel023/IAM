@@ -162,3 +162,19 @@ Get-WinEvent -ListLog '*Provisioning*','*ApplicationProxy*','*AAD*' -ErrorAction
 ~~~
 
 Un test TCP réussi ne valide pas l'authentification proxy ni le protocole applicatif. Un HTTP 4xx peut prouver qu'un serveur a répondu mais ne confirme pas l'enregistrement. Si ces tests passent, examiner en priorité le FQDN exact, le code HTTP et l'exception interne via Check the logs de l'assistant Cloud Sync. Ne pas modifier proxy ou TLS sans cause identifiée. Expurger toute donnée interne avant partage.
+
+## Mise à jour — tests TCP observés
+
+La capture PowerShell confirme les trois tests `Test-NetConnection -Port 443` :
+
+| Endpoint | TcpTestSucceeded |
+| --- | --- |
+| `login.microsoftonline.com` | `True` |
+| `enterpriseregistration.windows.net` | `True` |
+| `graph.microsoft.com` | `True` |
+
+**Portée de ce résultat :** la résolution DNS et l'établissement TCP 443 fonctionnent pour ces trois hôtes. Cela ne valide ni les requêtes HTTPS complètes ni les endpoints spécifiques utilisés pour l'enregistrement Cloud Sync/Application Proxy.
+
+**Toujours en attente :** sortie des tests `Invoke-WebRequest`, paramètres proxy du profil utilisateur et résultats de la recherche de journaux de l'agent. Ne pas considérer l'absence de sortie visible sur la capture comme une réussite.
+
+**Action suivante :** exécuter les tests HTTPS et relever l'exception interne via « Check the logs » de l'assistant d'enregistrement, en expurgeant tout identifiant privé avant partage. Conserver Entra Connect Sync en Staging Mode.
