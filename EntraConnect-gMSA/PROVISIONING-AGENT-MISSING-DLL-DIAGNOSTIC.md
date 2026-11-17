@@ -97,3 +97,21 @@ Get-WinEvent -FilterHashtable @{
 ```
 
 Ne pas relancer l'installation pour obtenir uniquement un code de retour. Examiner d'abord les logs existants. Avant partage ou commit, expurger identifiants, noms internes et chemins de profils.
+
+## Mise à jour — preuves MSI du 17 novembre 2026
+
+Les événements **MsiInstaller 1033 et 11707** confirment que Windows Installer a enregistré l'installation de **Microsoft Azure AD Connect Provisioning Agent, version 1.1.2507.0**, comme réussie (**installation success or error status: 0**). L'événement 1042 signale la fin de la transaction. Le `ExitCode` de l'objet PowerShell reste vide et ne doit pas être interprété comme un succès.
+
+**Conséquence diagnostique :** un échec déclaré par MSI est écarté pour cette transaction, mais ni la présence de `pap_connector_lib.dll`, ni la résolution de ses dépendances natives, ni la registration du connecteur ne sont validées. Les erreurs antérieures `0x8007007E` et registration restent à investiguer.
+
+Prochain contrôle, **lecture seule** :
+
+```powershell
+$root = 'C:\Program Files\Microsoft Azure AD Connect Provisioning Agent'
+Get-ChildItem -LiteralPath $root -Recurse -File -ErrorAction Stop |
+    Group-Object Extension |
+    Select-Object Name,Count |
+    Sort-Object Name
+```
+
+Ce comptage inventorie les types de fichiers, mais **ne prouve pas** que la DLL attendue est présente. Compléter ensuite par la recherche exacte de la DLL et, si nécessaire, l'analyse de dépendances. Ne pas réinstaller ni copier une DLL isolée avant d'avoir établi la cause.
