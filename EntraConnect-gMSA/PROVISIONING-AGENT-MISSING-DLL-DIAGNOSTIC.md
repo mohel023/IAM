@@ -115,3 +115,21 @@ Get-ChildItem -LiteralPath $root -Recurse -File -ErrorAction Stop |
 ```
 
 Ce comptage inventorie les types de fichiers, mais **ne prouve pas** que la DLL attendue est présente. Compléter ensuite par la recherche exacte de la DLL et, si nécessaire, l'analyse de dépendances. Ne pas réinstaller ni copier une DLL isolée avant d'avoir établi la cause.
+
+## Mise à jour — inventaire des extensions du package
+
+Une capture du dossier d'installation du Provisioning Agent montre **139 fichiers .dll** (et d'autres types de fichiers). Ceci prouve que des DLL ont été déployées, **pas** que `pap_connector_lib.dll` est présente ou chargeable. Les recherches précédentes de cette DLL n'ont rien retourné dans les emplacements contrôlés.
+
+Prochains contrôles en lecture seule :
+
+```powershell
+$root = 'C:\Program Files\Microsoft Azure AD Connect Provisioning Agent'
+Get-ChildItem -LiteralPath $root -Recurse -File -Filter '*.dll' -ErrorAction Stop |
+    Where-Object { $_.Name -match 'connector|proxy|native|pap' } |
+    Select-Object Name,DirectoryName,Length | Format-Table -AutoSize
+
+Get-ChildItem 'C:\ProgramData\Package Cache' -Filter 'pap_connector_lib.dll' -Recurse -File -ErrorAction SilentlyContinue |
+    Select-Object FullName,Length
+```
+
+Interprétation : si ces recherches sont vides, confirmer la liste des composants attendus dans le package de cette version avant toute réparation. Le code `0x8007007E` peut aussi indiquer une dépendance absente, pas nécessairement le fichier nommé lui-même. Ne pas copier de DLL tierce ni changer les paramètres de sécurité pour contourner le problème.
