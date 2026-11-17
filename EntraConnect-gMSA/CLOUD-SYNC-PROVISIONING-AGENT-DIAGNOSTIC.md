@@ -35,3 +35,30 @@ Get-WinEvent -FilterHashtable @{LogName='Application';StartTime=(Get-Date).AddHo
 
 ## Sécurité des identités
 Cloud Sync ne propose pas le Staging Mode d'Entra Connect Sync classique. Avant d'activer un provisioning vers un tenant contenant des comptes existants, limiter le périmètre pilote et examiner les correspondances UPN, proxyAddresses et identifiants d'ancrage selon les capacités et la configuration Cloud Sync. Ne pas activer une synchronisation générale sans validation.
+
+
+## Étape suivante — contrôles ciblés après clarification de -PassThru
+
+**Clarification :** `Start-Process -PassThru` retourne un objet processus PowerShell ; ce paramètre ne configure **pas** Pass-through Authentication (PTA). Le choix d'architecture reste **Cloud Sync avec Password Hash Synchronization (PHS)**, à configurer ultérieurement dans Entra après fonctionnement et enregistrement de l'agent.
+
+Sur le serveur Cloud Sync, lancer les contrôles **en lecture seule** ci-dessous depuis Windows PowerShell administrateur. Masquer les identités internes avant tout partage :
+
+~~~powershell
+$service = Get-CimInstance Win32_Service -Filter "Name='AADConnectProvisioningAgent'"
+$service | Select-Object Name,State,StartMode,StartName,PathName | Format-List
+
+$root = 'C:\Program Files\Microsoft Azure AD Connect Provisioning Agent'
+Get-ChildItem -LiteralPath $root -Recurse -File -ErrorAction Stop |
+    Where-Object { $_.Name -like '*pap*' -or $_.Name -like '*connector*lib*' } |
+    Select-Object FullName,Length
+
+Get-WinEvent -FilterHashtable @{
+    LogName='Application'
+    StartTime=(Get-Date).AddHours(-12)
+    Level=2
+} -ErrorAction SilentlyContinue |
+    Where-Object { $_.Message -match 'ProvisioningAgent|pap_connector|ApplicationProxy' } |
+    Select-Object -First 10 TimeCreated,Id,ProviderName,Message | Format-List
+~~~
+
+**Interprétation :** aucun résultat de recherche dans le dossier de l'agent n'est pas une preuve de la cause racine ; `0x8007007E` peut également provenir d'une dépendance native manquante. Si le service reste arrêté, corréler les journaux de l'agent et Service Control Manager. Ne pas réinstaller à l'identique, désactiver SmartScreen ou activer le provisioning avant d'avoir identifié la cause et validé les correspondances d'identité cloud.
