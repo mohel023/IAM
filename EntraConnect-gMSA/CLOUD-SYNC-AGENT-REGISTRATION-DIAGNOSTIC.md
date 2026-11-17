@@ -123,3 +123,42 @@ Ne pas déposer de journaux non expurgés dans GitHub.
 - https://learn.microsoft.com/en-us/entra/identity/hybrid/cloud-sync/how-to-troubleshoot
 
 Vérifier la liste actuelle des endpoints et les chemins des logs propres à la version installée avant tout changement réseau.
+
+## Mise à jour du 17 novembre 2026 — contrôles observés
+
+| Contrôle | Résultat constaté | Interprétation |
+| --- | --- | --- |
+| WinHTTP | Direct access (no proxy server) | Aucun proxy WinHTTP déclaré ; accès direct réel non prouvé |
+| OS | Windows Server 2025 Datacenter, build 26100 | Système identifié |
+| w32tm | Leap Indicator 0 (no warning) | Pas d'alerte de synchronisation horaire visible |
+| Source horaire | VM IC Time Synchronization Provider | Heure fournie par l'hyperviseur |
+| Schannel | Aucun événement affiché dans la capture | Ne prouve pas l'absence de problème TLS |
+
+### Tests suivants, non destructifs
+
+~~~powershell
+$endpoints = @('login.microsoftonline.com','enterpriseregistration.windows.net','graph.microsoft.com')
+foreach ($endpoint in $endpoints) {
+  Test-NetConnection -ComputerName $endpoint -Port 443 |
+    Select-Object ComputerName,RemoteAddress,TcpTestSucceeded
+}
+
+$urls = @('https://login.microsoftonline.com','https://graph.microsoft.com')
+foreach ($url in $urls) {
+  try {
+    $r = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 15
+    [pscustomobject]@{Url=$url;HTTP=$r.StatusCode;Error=$null}
+  } catch {
+    $status = if ($_.Exception.Response) { [int]$_.Exception.Response.StatusCode } else { $null }
+    [pscustomobject]@{Url=$url;HTTP=$status;Error=$_.Exception.Message}
+  }
+}
+
+Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings' |
+  Select-Object ProxyEnable,ProxyServer,AutoConfigURL
+
+Get-WinEvent -ListLog '*Provisioning*','*ApplicationProxy*','*AAD*' -ErrorAction SilentlyContinue |
+  Select-Object LogName,RecordCount
+~~~
+
+Un test TCP réussi ne valide pas l'authentification proxy ni le protocole applicatif. Un HTTP 4xx peut prouver qu'un serveur a répondu mais ne confirme pas l'enregistrement. Si ces tests passent, examiner en priorité le FQDN exact, le code HTTP et l'exception interne via Check the logs de l'assistant Cloud Sync. Ne pas modifier proxy ou TLS sans cause identifiée. Expurger toute donnée interne avant partage.
