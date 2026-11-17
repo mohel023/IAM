@@ -80,3 +80,18 @@ Get-ChildItem -LiteralPath $trace -File -Filter '*.log' -ErrorAction SilentlyCon
 - Ne pas activer deux mécanismes de synchronisation sur un même périmètre d'objets sans architecture et périmètre explicitement validés.
 - Ne pas désactiver TLS/contrôles réseau ou modifier le compte du service comme test rapide.
 - Aucun résultat des contrôles ci-dessus n'est présumé positif tant qu'il n'a pas été collecté.
+
+## Complément de diagnostic — recherche DLL et état du service
+
+Une nouvelle capture montre la commande de recherche sur les volumes accessibles de `pap_connector_lib.dll`, sans résultat visible, suivie d'un inventaire du service. Ce résultat **renforce** la suspicion d'absence de DLL mais ne la démontre pas exhaustivement car les erreurs de parcours ont été masquées.
+
+**Contrôle ciblé à exécuter sans masquer les erreurs :**
+
+```powershell
+$root = 'C:\Program Files\Microsoft Azure AD Connect Provisioning Agent'
+Get-ChildItem -LiteralPath $root -Recurse -File -ErrorAction Stop |
+  Where-Object { $_.Name -like '*connector*lib*' -or $_.Name -like '*pap*' } |
+  Select-Object FullName,Length
+```
+
+Interprétation : aucun résultat **sans erreur** signifie qu'aucun fichier correspondant n'a été trouvé dans **ce répertoire d'installation**, pas nécessairement dans tous les chemins de chargement. En cas d'erreur d'accès, corriger d'abord la portée du contrôle. Ne pas remplacer manuellement la DLL ; conserver les traces et vérifier l'installateur officiel avant toute réparation. Le service reste observé à l'arrêt et son démarrage est automatique. Ne pas modifier le gMSA ni désactiver le Staging Mode de Connect Sync.
