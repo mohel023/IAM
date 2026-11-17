@@ -403,3 +403,38 @@ Get-WinEvent -FilterHashtable @{LogName='System';StartTime=$since;Id=7000,7009,7
 ~~~
 
 Ne pas réinstaller l'agent, modifier TLS ou activer les exports sans résultats probants. Le dépôt est public : ne jamais y committer les logs bruts, identifiants, noms de domaines ou secrets.
+
+
+## Mise à jour — service arrêté, DLL non localisée dans le dossier de l'agent
+
+Nouvelle capture des contrôles non destructifs :
+- `Get-Service AADConnectProvisioningAgent` : **Stopped**, `StartType=Automatic`.
+- `Get-ChildItem` avec filtre exact `pap_connector_lib.dll` dans le dossier d'installation de l'agent : **aucune sortie visible**.
+- Recherches ciblées d'événements Application (erreurs/avertissements) et System (IDs d'échec de service) : **aucune sortie visible** pour les filtres employés.
+
+**Limites :** aucune sortie n'établit que la DLL est absente de tout le serveur ; aucun événement retourné ne signifie pas absence de toute erreur. Les filtres et la fenêtre de quatre heures peuvent manquer des événements. La cause de l'arrêt et son lien avec l'échec `RegisterConnector` restent inconnus.
+
+### Prochain contrôle — ne rien modifier
+
+~~~powershell
+# Chercher la DLL sur les volumes de fichiers accessibles (lecture seule)
+Get-PSDrive -PSProvider FileSystem | ForEach-Object {
+  Get-ChildItem -LiteralPath $_.Root -Filter 'pap_connector_lib.dll' -Recurse -File -ErrorAction SilentlyContinue
+} | Select-Object FullName,Length
+
+# Inventorier le service, son binaire et son compte d'exécution
+sc.exe qc AADConnectProvisioningAgent
+Get-CimInstance Win32_Service -Filter "Name='AADConnectProvisioningAgent'" |
+  Select-Object Name,State,StartMode,StartName,PathName
+
+# Lister les sous-dossiers du package
+$agentRoot = 'C:\Program Files\Microsoft Azure AD Connect Provisioning Agent'
+Get-ChildItem -LiteralPath $agentRoot -Directory -ErrorAction SilentlyContinue |
+  Select-Object Name
+
+# Journaux Windows présents
+Get-WinEvent -ListLog '*ApplicationProxy*','*Provisioning*' -ErrorAction SilentlyContinue |
+  Select-Object LogName,IsEnabled,RecordCount
+~~~
+
+**Décision :** si la DLL est absente de tout emplacement attendu, vérifier l'intégrité du package officiel et les dépendances ; si présente, investiguer la résolution de ses dépendances et les droits d'accès. Ne pas copier une DLL isolée, modifier TLS, désactiver les contrôles de sécurité ni réinstaller avant diagnostic. Préserver ADSync en Staging Mode et ne pas activer de configuration Cloud Sync.
