@@ -366,3 +366,40 @@ Get-WinEvent -FilterHashtable @{
 ~~~
 
 **Garde-fous :** ne pas démarrer de synchronisation active, désactiver le Staging Mode d'Entra Connect Sync, modifier les comptes, copier une DLL non officielle, ou lancer une réinstallation avant validation du diagnostic. Ne publier aucune sortie brute contenant des identifiants ou informations internes dans ce dépôt public.
+
+
+## Mise à jour — échec d'initialisation Event Viewer dans le wizard (17 novembre 2026)
+
+Capture du journal d'assistant vers 09:04:37, sans identifiants d'infrastructure reproduits :
+- `AADConnectProvisioningAgentWizard.exe` : ajout de TLS 1.2 puis TLS 1.3 indiqué dans les traces (cela ne valide pas la négociation TLS distante).
+- `RustEventLogger.Initialize` : échec d'initialisation Event Viewer aux tentatives 1/3 et 2/3, puis suppression temporaire des tentatives après 3 échecs.
+- `Could not log to event viewer because EnsureInitialized returned false`.
+- `WindowsServiceProvider: Stopping service AADConnectProvisioningAgent`.
+- L'opérateur a exécuté `Restart-Service -Name AADConnectProvisioningAgent` sans erreur affichée ; l'état durable du service n'a pas été revérifié.
+
+**Analyse :** le dysfonctionnement de journalisation est confirmé ; le lien causal avec l'échec de `RegisterConnector` reste non démontré. Le message antérieur `Unable to load DLL 'pap_connector_lib.dll' (0x8007007E)` reste une piste à corréler, sans supposer que la DLL elle-même est absente (une dépendance peut manquer).
+
+### Contrôles suivants (lecture seule)
+
+~~~powershell
+# Vérifier si le service reste réellement démarré
+Get-Service -Name AADConnectProvisioningAgent |
+  Select-Object Name,Status,StartType
+
+# Recherche EXACTE de la bibliothèque dans le dossier d'installation
+$agentRoot = 'C:\Program Files\Microsoft Azure AD Connect Provisioning Agent'
+Get-ChildItem -LiteralPath $agentRoot -Filter 'pap_connector_lib.dll' -Recurse -File -ErrorAction SilentlyContinue |
+  Select-Object FullName,Length,LastWriteTime
+
+# Erreurs Windows corrélées à la dernière tentative
+$since = (Get-Date).AddHours(-4)
+Get-WinEvent -FilterHashtable @{LogName='Application';StartTime=$since;Level=1,2,3} -ErrorAction SilentlyContinue |
+  Where-Object { $_.Message -match 'Provisioning|pap_connector|ApplicationProxy' -or $_.ProviderName -match 'Application Error|\.NET Runtime' } |
+  Select-Object -First 20 TimeCreated,Id,ProviderName,Message | Format-List
+
+Get-WinEvent -FilterHashtable @{LogName='System';StartTime=$since;Id=7000,7009,7011,7023,7024,7031,7034} -ErrorAction SilentlyContinue |
+  Where-Object { $_.Message -match 'Provisioning' } |
+  Select-Object -First 20 TimeCreated,Id,Message | Format-List
+~~~
+
+Ne pas réinstaller l'agent, modifier TLS ou activer les exports sans résultats probants. Le dépôt est public : ne jamais y committer les logs bruts, identifiants, noms de domaines ou secrets.
