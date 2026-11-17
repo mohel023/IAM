@@ -291,3 +291,39 @@ Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
 \`\`\`
 
 **Décision après résultats :** si DLL absente, vérifier la version et l'intégrité du package Microsoft ; si DLL présente, investiguer ses dépendances et l'environnement de chargement. Ne jamais télécharger/coller une DLL isolée depuis une source non officielle. Ne pas modifier le service Entra Connect Sync ni désactiver son Staging Mode. Aucune configuration Cloud Sync ne doit être activée avant validation des correspondances avec les utilisateurs cloud existants.
+
+
+## Contrôles supplémentaires — service arrêté et composants installés (17 novembre 2026)
+
+Dernière capture PowerShell, sans sortie de données sensibles :
+- Service \`AADConnectProvisioningAgent\` : \`Stopped\`, \`StartMode=Auto\`.
+- Exécutable : sous \`C:\Program Files\Microsoft Azure AD Connect Provisioning Agent\`.
+- \`Microsoft Entra Provisioning Agent Package\` et \`Microsoft Azure AD Connect Provisioning Agent\` : version \`1.1.2507.0\`.
+- Runtime Microsoft Visual C++ 2022 x64 et Redistributable 2015–2022 x64 : \`14.42.34438\`.
+- Recherche précédente de \`pap_connector_lib.dll\` dans \`C:\Program Files\Microsoft\` : aucun résultat visible ; **ce répertoire ne correspond pas au dossier de l'agent** et n'établit donc pas que la DLL est absente.
+
+### Vérifications à exécuter avant toute réparation
+
+~~~powershell
+$AgentPath = 'C:\Program Files\Microsoft Azure AD Connect Provisioning Agent'
+
+# Inventaire du dossier d'installation
+Get-ChildItem $AgentPath -Recurse -File -ErrorAction SilentlyContinue |
+  Where-Object { $_.Name -match 'pap_connector|\.dll$' } |
+  Select-Object FullName,Length | Format-Table -AutoSize
+
+# Recherche exacte dans les emplacements pertinents
+Get-ChildItem 'C:\Program Files','C:\ProgramData' -Filter 'pap_connector_lib.dll' -Recurse -File -ErrorAction SilentlyContinue |
+  Select-Object FullName,Length
+
+# Erreurs du gestionnaire de services
+Get-WinEvent -FilterHashtable @{
+  LogName='System'
+  ProviderName='Service Control Manager'
+  StartTime=(Get-Date).AddDays(-2)
+} -ErrorAction SilentlyContinue |
+  Where-Object { $_.Message -match 'AADConnectProvisioningAgent|Provisioning Agent' } |
+  Select-Object -First 15 TimeCreated,Id,Message | Format-List
+~~~
+
+**Interprétation attendue :** service arrêté + DLL introuvable au mauvais emplacement ne suffisent pas à conclure à un package corrompu. Si DLL absente du répertoire réel, envisager réparation officielle après validation ; si présente, rechercher ses dépendances natives. Ne pas télécharger de DLL isolée, désactiver la sécurité, ni sortir Entra Connect Sync de son Staging Mode. Les sorties de commandes doivent être expurgées des informations internes avant partage sur le dépôt public.
