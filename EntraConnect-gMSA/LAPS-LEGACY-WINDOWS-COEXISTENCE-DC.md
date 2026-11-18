@@ -57,3 +57,39 @@ Ne pas diffuser les résultats réels (noms de DC, DN internes) dans ce dépôt 
 6. Tester sauvegarde et récupération autorisée des mots de passe sans exposer de secrets dans les logs.
 
 Référence Microsoft : https://learn.microsoft.com/en-us/windows-server/identity/laps/laps-overview
+
+
+## Diagnostic du MSI Legacy LAPS bloqué et module AdmPwd.PS introuvable
+
+Observation : après `msiexec /i <chemin MSI> /quiet`, `Import-Module AdmPwd.PS` renvoie `Modules_ModuleNotFound`. Cela **ne prouve pas** la réussite de l'installation ; le blocage de compatibilité Windows Server 2025 reste applicable. Ne pas contourner le blocage par une installation silencieuse.
+
+### Contrôles non destructifs sur le DC
+
+~~~powershell
+Get-Module -ListAvailable AdmPwd.PS
+Get-ChildItem 'C:\Program Files\LAPS' -ErrorAction SilentlyContinue
+Get-CimInstance Win32_OperatingSystem |
+    Select-Object Caption,Version,BuildNumber
+
+Get-ItemProperty `
+    'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*', `
+    'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*' `
+    -ErrorAction SilentlyContinue |
+    Where-Object DisplayName -Match 'Local Administrator Password Solution' |
+    Select-Object DisplayName,DisplayVersion,InstallLocation
+~~~
+
+Pour une installation sur un **système compatible uniquement**, utiliser une journalisation MSI et examiner le code de retour, sans supposer qu'un processus silencieux a réussi :
+
+~~~powershell
+$p = Start-Process msiexec.exe `
+    -ArgumentList '/i "C:\Path\LAPS.x64.msi" /qn /norestart /L*v "C:\Windows\Temp\LegacyLAPS-install.log"' `
+    -Wait -PassThru
+$p.ExitCode
+~~~
+
+**Ne pas exécuter cette commande d'installation sur le DC Windows Server 2025.** Le fichier MSI et les chemins sont des exemples, pas des artefacts à copier depuis un serveur client.
+
+### État du schéma
+
+La vérification en lecture seule des deux attributs `ms-Mcs-AdmPwd` et `ms-Mcs-AdmPwdExpirationTime` a retourné `False` pour les deux. L'extension Legacy n'est donc pas constatée. Toute extension de schéma via LDIFDE ou autre méthode requiert des définitions officielles vérifiées, une revue de sécurité, une sauvegarde et un changement approuvé. Ne pas inventer les OID ni appliquer un LDIF non vérifié.
