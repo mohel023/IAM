@@ -24,7 +24,7 @@ Get-ADObject -SearchBase $SchemaDN `
   Select-Object Name,lDAPDisplayName
 ~~~
 
-**Attendu :** deux attributs. S'ils existent, ne pas réétendre le schéma sans nécessité. S'ils sont absents, préparer un changement de schéma approuvé, exécuté depuis une machine compatible avec les outils requis.
+**Attendu :** deux attributs. Extension Legacy LAPS déjà réalisée avec succès ; cette commande sert à confirmer sa présence et la réplication. Ne pas réexécuter `Update-AdmPwdADSchema`.
 
 ## Vérification du module Windows LAPS sur le DC
 
@@ -92,4 +92,89 @@ $p.ExitCode
 
 ### État du schéma
 
-La vérification en lecture seule des deux attributs `ms-Mcs-AdmPwd` et `ms-Mcs-AdmPwdExpirationTime` a retourné `False` pour les deux. L'extension Legacy n'est donc pas constatée. Toute extension de schéma via LDIFDE ou autre méthode requiert des définitions officielles vérifiées, une revue de sécurité, une sauvegarde et un changement approuvé. Ne pas inventer les OID ni appliquer un LDIF non vérifié.
+**Historique :** les deux attributs étaient initialement absents. **État actualisé :** `Update-AdmPwdADSchema -Verbose` a ensuite réussi (`AddSchemaAttribute` pour les deux attributs et `ModifySchemaClass` pour `computer`). Ne pas relancer l'extension ; vérifier la réplication AD et la présence des attributs sur les DC.
+
+
+## État et décisions — 20 novembre 2026
+
+- Extension du schéma **Legacy LAPS confirmée réussie** via `Update-AdmPwdADSchema -Verbose` : création de `ms-Mcs-AdmPwd`, `ms-Mcs-AdmPwdExpirationTime` et modification de la classe `computer`.
+- Permissions SELF Legacy LAPS indiquées comme appliquées aux OU `Servers` de Tier 0 et Tier 1 ; vérifier l'héritage vers les sous-OU régionales.
+- Domaine cible avec deux DC ; pas de Central Store ADMX. Les fichiers `AdmPwd.admx` et `AdmPwd.adml` peuvent être installés **localement sur la machine qui édite la GPO** (`C:\Windows\PolicyDefinitions` et sous-dossier de langue). Inutile de copier sur les deux DC si un seul sert à l'édition. Les paramètres GPO enregistrés se répliquent via AD/SYSVOL.
+- Legacy LAPS et Windows LAPS : **GPO distinctes**, serveurs membres uniquement, exclusion des DC et de Windows Server 2003.
+- Ne pas publier les identifiants réels, mots de passe, DN internes ou sorties d'audit sensibles.
+
+### Nommage selon convention interne (noms candidats, à valider)
+
+Format GPO observé : `{TierLevel}-<Objectif>-{ActionGPO}-{CibleGPO}` (exemple générique : `T1-SMBv1-Disable-Computer`).
+
+| Objet | Nom candidat |
+|---|---|
+| Legacy Tier 0 GPO | `T0-LegacyLAPS-Configure-Computer` |
+| Legacy Tier 1 GPO | `T1-LegacyLAPS-Configure-Computer` |
+| Windows Tier 0 GPO | `T0-WindowsLAPS-Configure-Computer` |
+| Windows Tier 1 GPO | `T1-WindowsLAPS-Configure-Computer` |
+
+Format groupes de population : `POL-<Department|BU|Purpose>-<Population>-<Grouping>`. Groupes **Global / Security** dans OU `Population Groups` :
+
+- `POL-LAPS-Administrators-T0`, `POL-LAPS-Administrators-T1` (pour accès Legacy, ou population commune uniquement si les mêmes habilitations sont approuvées).
+- Variante séparée pour Windows : `POL-LAPS-Windows-Administrators-T0`, `POL-LAPS-Windows-Administrators-T1`.
+
+Format groupes d'accès : `ACC-<T0>-{ResourceType}-[{Site}|{Region}]-<Target Object>-<Sub Object>-<Access|Role>`. Groupes **Domain Local / Security** dans OU `Access Groups` :
+
+- `ACC-T0-SRV-GLOBAL-LAPS-Legacy-Read`
+- `ACC-T1-SRV-GLOBAL-LAPS-Legacy-Read`
+- `ACC-T0-SRV-GLOBAL-LAPS-Windows-Read`
+- `ACC-T1-SRV-GLOBAL-LAPS-Windows-Read`
+
+**Réserve :** `SRV`, `GLOBAL`, `Configure` et les segments de population sont des propositions, non des codes officiellement validés. Adapter les noms à la convention et au site/région réel avant création. Imbrication AGDLP : comptes admin → groupe `POL` global → groupe `ACC` domain local → ACL AD. Ne jamais mélanger T0 et T1. Les groupes Windows LAPS habilités à lire les attributs chiffrés ne peuvent déchiffrer que s'ils sont également désignés comme déchiffreurs dans la GPO ; une séparation lecture/déchiffrement peut être préférable.
+
+### Délégations à valider
+
+**Legacy LAPS :** `Set-AdmPwdComputerSelfPermission -OrgUnit <OU-DN>` (SELF), `Set-AdmPwdReadPasswordPermission -OrgUnit <OU-DN> -AllowedPrincipals <ACC-LEGACY>` (lecture), `Set-AdmPwdResetPasswordPermission` si besoin distinct. Auditer `Find-AdmPwdExtendedRights`. Ne pas accorder directement la lecture aux groupes POL.
+
+**Windows LAPS :** vérifier d'abord les attributs `msLAPS-*` et le niveau fonctionnel AD ; `Set-LapsADComputerSelfPermission -Identity <OU-DN>`, `Set-LapsADReadPasswordPermission -Identity <OU-DN> -AllowedPrincipals <ACC-WINDOWS>`, `Set-LapsADResetPasswordPermission` uniquement si requis. Auditer `Find-LapsADExtendedRights`. Pour le chiffrement AD, niveau fonctionnel Windows Server 2016 minimum et groupe déchiffreur configuré **avant** la première sauvegarde chiffrée. Aucune délégation de lecture/rotation ne doit être supposée déjà appliquée.
+
+### WMI Filters proposés (namespace root\\CIMv2)
+
+Les filtres génériques déjà existants (`Server2008_And_Above`, `Server2016_And_Above`, etc.) sont potentiellement trop larges ; ne pas les modifier s'ils sont utilisés ailleurs. Créer des filtres dédiés et tester sur les serveurs pilotes.
+
+**`LAPS-Legacy-MemberServers-2008To2016`**
+
+Description: *Targets eligible Windows Server 2008 through 2016 member servers. Excludes domain controllers and Windows Server 2003.*
+
+~~~sql
+SELECT * FROM Win32_OperatingSystem
+WHERE ProductType = 3
+AND (
+  Version LIKE "6.0%"
+  OR Version LIKE "6.1%"
+  OR Version LIKE "6.2%"
+  OR Version LIKE "6.3%"
+  OR Version LIKE "10.0.14393%"
+)
+~~~
+
+**`LAPS-Windows-MemberServers-2019AndAbove`**
+
+Description: *Targets Windows Server 2019, 2022 and 2025 member servers with required Windows LAPS updates. Excludes domain controllers.*
+
+~~~sql
+SELECT * FROM Win32_OperatingSystem
+WHERE ProductType = 3
+AND (
+  Version LIKE "10.0.17763%"
+  OR Version LIKE "10.0.20348%"
+  OR Version LIKE "10.0.26100%"
+)
+~~~
+
+**Important :** les WMI filters testent une version OS, **pas** la présence du client, du correctif, de la fonctionnalité ni la compatibilité effective. Vérifier les prérequis Microsoft par version, particulièrement Windows Server 2008/2008 R2 et 2016, avant déploiement. Les Windows Server 2003 ne sont pris en charge ni par Legacy LAPS officiel ni par Windows LAPS : prévoir un traitement PAM distinct. `ProductType = 3` exclut les DC. Les GPO doivent en outre être limitées aux OU et groupes pilotes appropriés pour empêcher tout chevauchement.
+
+### Séquence de validation
+
+1. Contrôler réplication du schéma et héritage SELF sur OU régionales.
+2. Valider les noms et membres POL/ACC avec les responsables IAM et Tier.
+3. Vérifier ACL existantes avant délégation READ/RESET et configurer les droits Windows LAPS séparément.
+4. Créer et tester les deux WMI filters ; contrôler `Get-CimInstance Win32_OperatingSystem` et `gpresult /r /scope computer`.
+5. Déployer les GPO pilotes sur serveurs membres compatibles, avec CSE Legacy uniquement là où nécessaire.
+6. Vérifier les journaux LAPS et les attributs d'expiration **sans divulguer de mot de passe** ; étendre par vagues après validation.
