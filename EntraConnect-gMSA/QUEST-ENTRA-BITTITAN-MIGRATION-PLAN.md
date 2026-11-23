@@ -102,3 +102,66 @@ Dans les deux cas, définir les chemins **source→cible**, **cible→source**, 
 - **D07** Autoriser un pilote avec preuves de recette et rollback.
 
 > Aucun changement de production n'est recommandé avant validation conjointe AD, Entra, Exchange, sécurité et chef de projet.
+
+
+## 9. Annexe opérationnelle — délégation AD source
+| Fonction | Droit à vérifier | Preuve |
+|---|---|---|
+| Découverte Quest | Lecture OU, objets et attributs nécessaires ; compte de service dédié | Inventaire source et test d'accès |
+| Synchronisation | Lecture groupes, membres et attributs ; écriture source uniquement si fonction documentée | Journaux + comparaison |
+| Mot de passe | Prérequis spécifiques du composant Quest ; un mot de passe AD n'est pas lisible par simple délégation | Pilote authentification |
+| SIDHistory | Fonction facultative, prérequis inter-forêts, droits privilégiés et validation sécurité | Décision et test ACL historiques |
+| ReACL | Accès aux postes, fichiers et ACL selon agents, distinct de l'AD | Pilote restauration |
+| Sélection par attribut | Lecture de l'attribut par Quest, écriture contrôlée par l'équipe source | Valeurs et population validées |
+
+**Important :** la liste des ACL exactes dépend de la version de Quest, des composants activés et des opérations choisies. Ne pas accorder Domain Admin ou Enterprise Admin comme délégation par défaut.
+
+## 10. Annexe opérationnelle — matrice mail flow
+| Émetteur | Destinataire | Comportement cible | Test |
+|---|---|---|---|
+| Internet | Non migré | Livraison source | Trace externe→source |
+| Internet | Migré | Livraison cible, éventuellement via tenant source avant transfert SMTP | Trace externe→cible |
+| Non migré | Migré | Résolution source vers adresse de routage technique cible | Source→cible |
+| Migré | Non migré | Résolution cible vers adresse de routage technique source | Cible→source |
+| Migré | Migré | Livraison locale cible | Cible→cible |
+| Non migré | Non migré | Livraison locale source | Source→source |
+
+**Décisions obligatoires :** propriétaire du domaine SMTP à chaque phase ; domaine(s) de routage ; MailUser/contact ; accepted domains ; connecteurs éventuels ; transfert du domaine ; MX, SPF/DKIM/DMARC ; retour arrière. **BitTitan migre les données, pas le mail flow.** Le comportement de `targetAddress` dépend du type d'objet et de la configuration Exchange.
+
+## 11. Vérifications techniques en lecture seule
+```powershell
+# Sur le serveur Entra Connect
+Get-ADSyncScheduler | Format-List *
+Get-ADSyncRule | Select-Object Name,Direction,Precedence,Disabled
+
+# Exchange Online, dans chaque tenant
+Get-AcceptedDomain | Select-Object Name,DomainName,DomainType,Default
+Get-InboundConnector
+Get-OutboundConnector
+Get-TransportRule | Select-Object Name,State,Mode
+Get-Recipient -Identity "user@example.com" |
+  Format-List RecipientTypeDetails,PrimarySmtpAddress,ExternalEmailAddress,EmailAddresses
+```
+Adapter identités et accès ; ces commandes ne remplacent pas l'audit complet du tenant.
+
+## 12. Next steps techniques P0/P1
+1. **J1** Baseline Quest : profils, scope OU, schedules, matching, overrides, journaux et version.
+2. **J1** Atelier AD source : comptes techniques, ACL, exclusions IT/Tier0, mots de passe, SIDHistory.
+3. **J2** Audit Entra Connect : OU filtering, sourceAnchor, règles custom, exports et objets cloud existants.
+4. **J2** Atelier Exchange : même domaine SMTP ou non, tenant receveur, routage bidirectionnel, MailUsers et connecteurs.
+5. **J3** Revue ligne par ligne des overrides Quest UPN/TargetAddress/BTCustom ; définir attribut de vague.
+6. **J4** Pilote création AD cible et synchronisation Entra ; contrôles anti-doublon.
+7. **J4–J5** Pilote BitTitan + mail flow 2×2 + externe, réponses, DL, NDR, rollback.
+8. **Après GO** Préparation des postes, ReACL, cutover par vagues et hypercare.
+
+## 13. Questions bloquantes en atelier
+- Which exact source AD service-account permissions are required by the enabled Quest operations, and who grants them?
+- Are password migration and SIDHistory required, and which supported Quest mechanisms are selected?
+- Which source attribute selects migration waves, and is filtering supported by the installed build?
+- Are the existing IT accounts excluded from Quest UPDATE/MERGE operations?
+- What OU scope, sourceAnchor and custom sync rules are active in target Entra Connect?
+- Which tenant owns the primary SMTP domain now and after each cutover?
+- What recipient objects and routing domains implement source-to-target and target-to-source mail flow?
+- Who owns the Quest UPN, TargetAddress and BTCustom transformations, and what do they output?
+- What is the exact BitTitan pre-stage/final delta/activation sequence?
+- What evidence and rollback criteria are required for GO/NO-GO?
