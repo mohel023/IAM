@@ -1,53 +1,38 @@
-# Quest AD Migration — Source Domain Read-Only Access and Pilot Preparation
+# Quest AD Migration — Pilot Planned for Today and Local Administrator Access
 
-> Generic email template. No customer names, actual domains, account names, addresses, or environment identifiers.
+> Anonymized proposed email. Do not add customer names, domain identifiers, passwords or screenshots.
 
-## Proposed email (English)
-
-**Subject:** Quest AD Migration – Source Domain Read-Only Access and Pilot Preparation
+**Subject:** Quest AD Migration – Pilot Planned for Today and Local Administrator Access
 
 Hi team,
 
-Following our previous discussions, I would like to follow up on my request for a **dedicated read-only account in the source Active Directory domain**.
+We are planning to perform the **Quest AD identity migration pilot today**.
 
-This access is required to review the source AD structure, users, groups, group memberships and relevant attributes, and to perform the necessary checks before configuring the Quest identity migration pilot.
+The migration selection attribute has already been agreed, and the group migration and membership handling are covered by the existing Quest configuration.
 
-Could you please confirm when this account will be available?
+The pilot scope and execution will be validated by our project lead.
 
-**1. Identity migration pilot**
+**Local Administrator Account – Access Required**
 
-The AD attribute used to select users for migration has already been agreed.
+To proceed with the pilot and perform the necessary validation checks, could you please provide the requested **local administrator account on the Quest migration server**?
 
-Could you please confirm the initial pilot scope and the users to be included?
+We would appreciate having this access available today to avoid delaying the pilot.
 
-**2. Group migration – Recommended approach**
+**Planned pilot activities**
 
-As the target domain does not currently contain the users or groups to be migrated, I recommend the following approach:
+- Review the existing Quest synchronization configuration.
+- Validate the selected pilot users and groups.
+- Execute the pilot synchronization once approved.
+- Verify the migrated users and their group memberships in the target domain.
+- Review synchronization logs and identify any exceptions.
+- Perform the necessary post-migration checks.
 
-- Identify the groups associated with the pilot users, including nested group dependencies.
-- Review group types, scopes and target OU placement.
-- Configure and validate group creation and synchronization in Quest.
-- Enable group membership preservation and verify direct and nested memberships.
-- Compare the source and target results before extending the migration to additional users.
+As agreed, SourceAnchor will not be migrated, and I will handle the manual updates of SMTP proxy addresses in coordination with the messaging migration activities.
 
-**3. Quest synchronization configuration**
-
-I will review the existing Quest Directory Sync Pro profiles, including the agreed selection attribute, matching rules, attribute mappings and destination OUs.
-
-As agreed, SourceAnchor will not be migrated. We will review the Entra ID implications separately.
-
-**4. SMTP proxy addresses**
-
-I will handle the manual updates of the SMTP proxy addresses, coordinating the timing with the messaging migration activities.
-
-**5. Pilot validation**
-
-Could you please confirm who will approve the pilot scope and authorize the first synchronization test?
-
-Once the read-only access is available and the pilot scope is confirmed, I can finalize the configuration review and prepare the pilot validation checklist.
+Please let us know once the local administrator account is available so we can proceed with the pilot validation.
 
 Thanks.
 
-## Technical note
+---
 
-The read-only source-domain account is for consultation and audit; it does not replace Quest technical service accounts requiring permissions to create or modify target directory objects. Do not commit customer credentials, real account names, domains, or production exports.
+**Note:** This is a proposed message, not evidence of approval or completed migration. No customer-specific configuration or secrets are included.
