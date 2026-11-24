@@ -1,40 +1,53 @@
-# Quest Directory Sync Pro — questions et mail proposé (modèle anonymisé)
+# Quest AD Migration — Source Domain Read-Only Access and Pilot Preparation
 
-> Document générique. Aucun nom, domaine, attribut réel, valeur de sélection ou identifiant client.
-
-## Questions restantes à valider
-
-1. Quel est le périmètre utilisateur et groupe du pilote, et qui l'approuve ?
-2. Le mécanisme de sélection par attribut déjà défini est-il pris en charge et correctement configuré dans le profil Quest installé ?
-3. Les groupes étant absents de la cible, quel profil et quelles règles assureront leur création/synchronisation avant la validation des appartenances (portée, type, OU, groupes imbriqués) ?
-4. Certains utilisateurs existent-ils déjà dans la cible ? Quelles règles de correspondance et de résolution des conflits appliquer ?
-5. Quelle est la stratégie de continuité d'identité Entra ID ? La question de l'ancrage sera traitée séparément.
-6. Qui effectuera manuellement les modifications des adresses SMTP, à quel moment et avec quelles validations ?
-7. Qui valide les permissions techniques, le pilote, les résultats et l'autorisation de passage en production ?
+> Generic email template. No customer names, actual domains, account names, addresses, or environment identifiers.
 
 ## Proposed email (English)
 
-**Subject:** Quest Directory Sync Pro — Identity Migration Pilot: Remaining Validations
+**Subject:** Quest AD Migration – Source Domain Read-Only Access and Pilot Preparation
 
 Hi team,
 
-As the AD attribute used to select identities has already been agreed, and the corresponding groups do not yet exist in the target domain, could you please help confirm the remaining pilot prerequisites?
+Following our previous discussions, I would like to follow up on my request for a **dedicated read-only account in the source Active Directory domain**.
 
-1. Which users and groups are approved for the initial pilot, and who signs off on the scope?
-2. Can we validate how the agreed selection attribute is applied in the current Quest synchronization profile?
-3. What is the approved approach for creating or synchronizing the missing groups in the target domain, including group scope, destination OU, nested groups, and membership preservation?
-4. Are any pilot users already present in the target AD, and how should matching conflicts be handled?
-5. We will review the Entra ID identity-anchor implications separately.
-6. Who will manually update the SMTP proxy addresses, at which stage, and how will the changes be validated?
-7. Who will validate source and target permissions, approve the pilot, and sign off on the results?
+This access is required to review the source AD structure, users, groups, group memberships and relevant attributes, and to perform the necessary checks before configuring the Quest identity migration pilot.
 
-Once these points are confirmed, I can review the existing Quest synchronization profile and prepare the pilot execution and validation checklist. No synchronization will be launched before approval.
+Could you please confirm when this account will be available?
+
+**1. Identity migration pilot**
+
+The AD attribute used to select users for migration has already been agreed.
+
+Could you please confirm the initial pilot scope and the users to be included?
+
+**2. Group migration – Recommended approach**
+
+As the target domain does not currently contain the users or groups to be migrated, I recommend the following approach:
+
+- Identify the groups associated with the pilot users, including nested group dependencies.
+- Review group types, scopes and target OU placement.
+- Configure and validate group creation and synchronization in Quest.
+- Enable group membership preservation and verify direct and nested memberships.
+- Compare the source and target results before extending the migration to additional users.
+
+**3. Quest synchronization configuration**
+
+I will review the existing Quest Directory Sync Pro profiles, including the agreed selection attribute, matching rules, attribute mappings and destination OUs.
+
+As agreed, SourceAnchor will not be migrated. We will review the Entra ID implications separately.
+
+**4. SMTP proxy addresses**
+
+I will handle the manual updates of the SMTP proxy addresses, coordinating the timing with the messaging migration activities.
+
+**5. Pilot validation**
+
+Could you please confirm who will approve the pilot scope and authorize the first synchronization test?
+
+Once the read-only access is available and the pilot scope is confirmed, I can finalize the configuration review and prepare the pilot validation checklist.
 
 Thanks.
 
-## Technical checks
+## Technical note
 
-- Review user and group synchronization profiles and source/target OU scope.
-- Confirm group object creation/synchronization is configured; enabling group membership alone does not establish that missing group objects will be created.
-- Validate selection, matching, mapping and scheduling in the installed Quest version.
-- Run a controlled pilot only after approval; verify users, groups and direct/nested memberships.
+The read-only source-domain account is for consultation and audit; it does not replace Quest technical service accounts requiring permissions to create or modify target directory objects. Do not commit customer credentials, real account names, domains, or production exports.
