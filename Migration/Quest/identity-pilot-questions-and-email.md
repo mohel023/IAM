@@ -1,38 +1,38 @@
-# Quest AD Migration — Pilot Planned for Today and Local Administrator Access
+# Quest AD Migration — Identity Migration Pilot and Source AD Read-Only Access
 
-> Anonymized proposed email. Do not add customer names, domain identifiers, passwords or screenshots.
+> Generic proposed email; no customer-specific names, identifiers, passwords, or configurations.
 
-**Subject:** Quest AD Migration – Pilot Planned for Today and Local Administrator Access
+**Subject:** Quest AD Migration – Identity Migration Pilot and Source AD Read-Only Access
 
 Hi team,
 
-We are planning to perform the **Quest AD identity migration pilot today**.
+We are planning to perform the Quest AD identity migration pilot today, subject to approval by our project lead.
 
-The migration selection attribute has already been agreed, and the group migration and membership handling are covered by the existing Quest configuration.
+The migration selection attribute has already been agreed, and the existing Quest configuration will be used to handle group migration and membership preservation.
 
-The pilot scope and execution will be validated by our project lead.
+**Source AD Read-Only Account – Access Required**
 
-**Local Administrator Account – Access Required**
+I would like to follow up on my previous request for a dedicated **read-only account in the source Active Directory domain**.
 
-To proceed with the pilot and perform the necessary validation checks, could you please provide the requested **local administrator account on the Quest migration server**?
+This access is required to review source users, groups, group memberships and relevant attributes, as well as to perform the necessary pre-migration and post-migration validation checks.
 
-We would appreciate having this access available today to avoid delaying the pilot.
+Could you please confirm whether this account can be made available today?
 
 **Planned pilot activities**
 
 - Review the existing Quest synchronization configuration.
-- Validate the selected pilot users and groups.
-- Execute the pilot synchronization once approved.
-- Verify the migrated users and their group memberships in the target domain.
-- Review synchronization logs and identify any exceptions.
-- Perform the necessary post-migration checks.
+- Verify the selected pilot users and their associated groups.
+- Execute the pilot synchronization after approval by our project lead.
+- Validate the migrated users and group memberships in the target domain.
+- Review synchronization logs and resolve any identified exceptions.
+- Perform post-migration validation checks.
 
 As agreed, SourceAnchor will not be migrated, and I will handle the manual updates of SMTP proxy addresses in coordination with the messaging migration activities.
 
-Please let us know once the local administrator account is available so we can proceed with the pilot validation.
+Please let us know once the source AD read-only account is available so we can proceed with the pilot preparation and validation.
 
 Thanks.
 
 ---
 
-**Note:** This is a proposed message, not evidence of approval or completed migration. No customer-specific configuration or secrets are included.
+**Note:** This is a draft, not evidence of approval or completed migration. Read-only access for inspection is distinct from Quest service-account permissions for directory writes.
